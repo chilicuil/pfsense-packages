@@ -1,0 +1,71 @@
+smokeping_master="http://smokeping/cgi-bin/smokeping.cgi"
+smokeping_enable=NO
+smokeping_pidfile="/usr/local/var/smokeping/smokeping.pid"
+smokeping_logfile="/var/log/smokeping.log"
+smokeping_user="smokeping"
+smokeping_group="smokeping"
+smokeping_slavename=""
+
+. /etc/rc.subr
+
+name="smokeping"
+rcvar="smokeping_enable"
+load_rc_config $name
+pidfile="${smokeping_pidfile}"
+command="/usr/local/bin/smokeping"
+command_args="--master-url=${smokeping_master} --cache-dir=/usr/local/var/smokeping/ --shared-secret=/usr/local/etc/smokeping/slavesecrets.conf --logfile=${smokeping_logfile}"
+
+if [ ! -z $smokeping_slavename ];
+   then
+	command_args="--master-url=${smokeping_master} --cache-dir=/usr/local/var/smokeping/ --shared-secret=/usr/local/etc/smokeping/slavesecrets.conf --slave-name=${smokeping_slavename} --logfile=${smokeping_logfile}"
+fi
+
+extra_commands="reload"
+reload_cmd="smokeping_reloadcmd"
+start_precmd="smokeping_startprecmd"
+stop_cmd="smokeping_stopcmd"
+status_cmd="smokeping_statuscmd"
+
+smokeping_reloadcmd()
+{
+	$command --reload
+}
+
+smokeping_statuscmd()
+{
+	if [ ! -e $pidfile ];
+	then
+		echo "pidfile does not exist. $name is not running?";
+		exit 1;
+	fi
+
+	if pgrep -F $pidfile >/dev/null;
+	then
+		echo "$name is running.";
+	else
+		echo "$name is not running.";
+		exit 1;
+	fi
+}
+
+smokeping_stopcmd()
+{
+	if pgrep -F $pidfile >/dev/null; 
+	then
+		kill $sig_stop `cat $pidfile`;
+		wait_for_pids `cat $pidfile`;
+	else
+		echo "$name is not running.";
+		exit 1;
+	fi
+}
+
+smokeping_startprecmd()
+{
+	if [ ! -e $smokeping_logfile ];
+	then
+		install -o smokeping -g smokeping /dev/null $smokeping_logfile || echo "ERROR: Could not initialize logfile at $smokeping_logfile.";
+	fi
+}
+
+run_rc_command "$1"
