@@ -11,7 +11,8 @@
     part of pfSense (http://www.pfSense.com)
     Copyright (C) 2008 Scott Ullrich
     Copyright (C) 2008-2012 Robert Zelaya.
-    All rights reserved.                                                                              */
+    All rights reserved.
+*/
 /* ========================================================================== */
 /*
     Redistribution and use in source and binary forms, with or without
@@ -34,24 +35,28 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
-                                                                              */
+*/
 /* ========================================================================== */
         ]]>
         </copyright>
         <description>Smokeping Agent</description>
         <requirements>None</requirements>
-        <faq>SmokePing keeps track of your network latency</faq>
+        <faq>Currently there are no FAQ items provided.</faq>
 	<name>smokepingagent</name>
 	<version>2.6.8</version>
 	<title>Services: Smokeping Agent</title>
 	<category>Monitoring</category>
 	<savetext>Save</savetext>
-        <aftersaveredirect>pkg_edit.php?xml=smokeping-agent.xml&amp;id=0</aftersaveredirect>
-	<restart_command>service smokeping restart</restart_command>
+	<include_file>/usr/local/pkg/smokeping-agent.inc</include_file>
         <additional_files_needed>
+          	<item>http://pfsense-mirror.clearcom.mx/packages/config/smokeping-agent/smokeping-agent.inc</item>
+          	<prefix>/usr/local/pkg/</prefix>
+          	<chmod>0755</chmod>
+        </additional_files_needed>
+        <additional_files_needed>
+          <item>http://pfsense-mirror.clearcom.mx/packages/config/smokeping-agent/rc.d/smokeping</item>
           <prefix>/usr/local/etc/rc.d/</prefix>
           <chmod>0755</chmod>
-          <item>http://www.pfsense.com/packages/config/smokeping/rc.d/smokeping</item>
         </additional_files_needed>
 	<menu>
 		<name>Smokeping Agent</name>
@@ -62,7 +67,10 @@
 	<service>
 		<name>smokeping</name>
 		<rcfile>smokeping</rcfile>
-		<executable>smokeping</executable>
+                <custom_php_service_status_command>
+                        include("/usr/local/pkg/smokeping-agent.inc");
+                        status_smokeping_agent();
+                </custom_php_service_status_command>
 		<description>Smokeping Agent host monitor daemon</description>
 	</service>
 	<tabs>
@@ -73,14 +81,22 @@
 		</tab>
 	</tabs>
 	<fields>
+                <field>
+                        <name>Smokeping Agent Settings</name>
+                        <type>listtopic</type>
+                </field>
+                <field>
+                        <fielddescr>Enable</fielddescr>
+                        <fieldname>agentenabled</fieldname>
+                        <description>Enable Smokeping Agent service</description>
+                        <type>checkbox</type>
+                </field>
 		<field>
 			<fielddescr>Master</fielddescr>
 			<fieldname>master</fieldname>
-			<description>Master Smokeping IP address (or hostname), with http as prefix</description>
-                        <value>http://smokeping/cgi-bin/smokeping.cgi</value>
+			<description>Master Smokeping URL address, with http as prefix e.g. http://smokeping/cgi-bin/smokeping.cgi</description>
 			<type>input</type>
 			<size>60</size>
-			<required>true</required>
 		</field>
 		<field>
 			<fielddescr>Secret</fielddescr>
@@ -103,103 +119,12 @@
                                NOTE: Leave blank to use this devices hostname.
                         ]]>
                         </description>
-                        <value>slavename</value>
 			<type>input</type>
 			<size>60</size>
-			<required>false</required>
 		</field>
 	</fields>
-	<custom_php_global_functions>
-	<![CDATA[
-	function sync_package_smokeping() {
-	    conf_mount_rw();
-	    config_lock();
-	    global $config;
-	    global $input_errors;
-	    $smokeping_config =&amp; $_POST;
-
-            exec("/bin/echo " . $smokeping_config['slavesecret'] . " &gt; /usr/local/etc/smokeping/slavesecrets.conf");
-            exec("sed -i -e \"s:NO:YES:g\" /usr/local/etc/rc.d/smokeping");
-            if($smokeping_config['slavesecret'] {
-              exec("sed -i -e \"/slavename=/ s:=.*:=$smokeping_config['slavesecret']:\" /usr/local/etc/rc.d/smokeping");
-            }
-
-            /*
-	    write_rcfile(array(
-		    "file" => "smokeping.sh",
-		    "start" => "service smokeping onestart",
-		    "stop" => "service smokeping onestop"
-		    "restart" => "service smokeping restart"
-		    )
-	    );
-            */
-	    restart_service("smokeping");
-	    conf_mount_ro();
-	    config_unlock();
-	}
-	]]>
-	</custom_php_global_functions>
-	<custom_add_php_command>
-	<![CDATA[
-		sync_package_smokeping();
-	]]>
-	</custom_add_php_command>
-	<custom_php_install_command>
-	<![CDATA[
-	global $config, $g;
-
-	conf_mount_rw();
-
-	/* create a few directories and ensure the sample files are in place */
-        exec("/usr/bin/touch /usr/local/etc/smokeping/slavesecrets.conf");
-        exec("/bin/chmod /usr/local/etc/smokeping/slavesecrets.conf");
-        exec("/usr/sbin/chown smokeping:smokeping /usr/local/etc/smokeping/slavesecrets.conf");
-        exec("ln -s /usr/local/sbin/fping /usr/bin/fping");
-
-	conf_mount_ro();
-	]]>
-	</custom_php_install_command>
-	<custom_php_command_before_form></custom_php_command_before_form>
-	<custom_php_after_head_command></custom_php_after_head_command>
-	<custom_php_after_form_command></custom_php_after_form_command>
-	<custom_php_validation_command>
-	<![CDATA[
-          conf_mount_rw();
-          global $config;
-          global $input_errors;
-          $smokeping_config =&amp; $_POST;
-
-          exec("/usr/bin/fetch $smokeping_config['master']");
-
-          $fsmokeping = './smokeping.cgi';
-
-          if (file_exists($fsmokeping)) {
-            exec("/bin/rm $fsmokeping");
-          } else {
-            $input_errors[]="Master URL is down or contains an invalid address.";
-          }
-
-         if($smokeping_config['slavesecret'] and $smokeping_config['slavesecretagain']) {
-          if($smokeping_config['slavesecret'] &#33;= $smokeping_config['slavesecretagain']) {
-            $input_errors[] = "The provided passwords did not match.";
-           }
-         } else {
-            $input_errors[] = "You must provide (and confirm) smokeping's password.";
-         }
-	conf_mount_ro();
-	]]>
-	</custom_php_validation_command>
-	<custom_add_php_command></custom_add_php_command>
-	<custom_php_resync_config_command>
-	<![CDATA[
-		sync_package_smokeping();
-	]]>
-	</custom_php_resync_config_command>
-	<custom_php_deinstall_command>
-	<![CDATA[
-	conf_mount_rw();
-	exec("rm /usr/local/etc/rc.d/smokeping");
-	conf_mount_ro();
-	]]>
-	</custom_php_deinstall_command>
+	<custom_php_install_command>install_smokeping_agent();</custom_php_install_command>
+        <custom_php_deinstall_command>uninstall_smokeping_agent();</custom_php_deinstall_command>
+	<custom_php_validation_command>validate_input_smokeping_agent($_POST, &amp;$input_errors);</custom_php_validation_command>
+	<custom_php_resync_config_command>sync_smokeping_agent();</custom_php_resync_config_command>
 </packagegui>
