@@ -1968,7 +1968,7 @@
                 <category>Services</category>
                 <version>2.6.8</version>
                 <status>BETA</status>
-                <maintainer>chilicuil@ubuntu.com</maintainer>
+                <maintainer>javier-lopez@ubuntu.com</maintainer>
                 <required_version>1.2</required_version>
                 <depends_on_package_base_url>http://ftp.freebsd.org/pub/FreeBSD/releases/i386/8.4-RELEASE/packages/All/</depends_on_package_base_url>
                 <depends_on_package>smokeping-2.6.8.tbz</depends_on_package>
